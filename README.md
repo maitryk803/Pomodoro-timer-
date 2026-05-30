@@ -10,6 +10,9 @@ A simple Pomodoro Timer web application built using HTML, CSS, and JavaScript. T
 - ⚡ Built with pure JavaScript (no frameworks)
 - 🎨 Clean and minimal design
 
+## screenshot
+![Pomodoro Timer Screenshot](screenshot1.png)
+
 ## Technologies Used
 
 - HTML5
