@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FocusFlow — Pomodoro Timer</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0f0e;
+      --card: #1a1d1a;
+      --border: #252825;
+      --green: #b5e853;
+      --green-dark: #7aab2a;
+      --text: #e8ede8;
+      --muted: #6b736b;
+      --yellow: #e8b853;
+      --blue: #53a9e8;
+      --red: #e85353;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 32px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.4rem;
+      color: var(--green);
+    }
+
+    .logo em { color: var(--muted); font-style: italic; }
+
+    .header-stats { display: flex; gap: 28px; }
+
+    .stat { text-align: right; }
+    .stat-num {
+      font-family: 'DM Mono', monospace;
+      font-size: 1.1rem;
+      color: var(--green);
+    }
+    .stat-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* ── MAIN LAYOUT ── */
+    main {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      flex: 1;
+    }
+
+    /* ── LEFT: TIMER SIDE ── */
+    .timer-side {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      padding: 40px;
+      border-right: 1px solid var(--border);
+    }
+
+    /* Mode buttons */
+    .mode-tabs {
+      display: flex;
+      gap: 6px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 5px;
+    }
+
+    .mode-btn {
+      padding: 8px 18px;
+      border-radius: 100px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .mode-btn.active {
+      background: var(--green);
+      color: #0d0f0e;
+      font-weight: 500;
+    }
+
+    /* Timer circle */
+    .timer-circle {
+      position: relative;
+      width: 260px;
+      height: 260px;
+    }
+
+    .timer-circle svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+
+    /* grey background ring */
+    .ring-bg {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 7;
+    }
+
+    /* coloured progress ring */
+    .ring-progress {
+      fill: none;
+      stroke: var(--green);
+      stroke-width: 7;
+      stroke-linecap: round;
+      /* circumference of r=116 circle = 2 * PI * 116 ≈ 729 */
+      stroke-dasharray: 729;
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 1s linear, stroke 0.4s;
+    }
+
+    /* text inside circle */
+    .timer-text {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .timer-time {
+      font-family: 'DM Mono', monospace;
+      font-size: 3.4rem;
+      letter-spacing: -2px;
+      line-height: 1;
+    }
+
+    .timer-mode-name {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-top: 6px;
+    }
+
+    /* Pomo dots */
+    .pomo-dots { display: flex; gap: 8px; }
+
+    .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background 0.3s;
+    }
+    .dot.done { background: var(--green); }
+    .dot.active { background: var(--green); opacity: 0.45; }
+
+    /* Controls */
+    .controls { display: flex; align-items: center; gap: 14px; }
+
+    .btn-play {
+      width: 62px; height: 62px;
+      border-radius: 50%;
+      border: none;
+      background: var(--green);
+      color: #0d0f0e;
+      font-size: 1.4rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+
+    .btn-play:hover { transform: scale(1.08); opacity: 0.9; }
+
+    .btn-play.paused {
+      background: var(--card);
+      border: 1.5px solid var(--green);
+      color: var(--green);
+    }
+
+    .btn-round {
+      width: 46px; height: 46px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted);
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .btn-round:hover { color: var(--text); border-color: var(--muted); }
+
+    /* Task input */
+    .task-form { width: 100%; max-width: 340px; }
+
+    .form-label {
+      display: block;
+      font-size: 0.7rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+    }
+
+    .form-row { display: flex; gap: 8px; }
+
+    .task-input {
+      flex: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .task-input:focus { border-color: var(--green); }
+    .task-input::placeholder { color: var(--muted); }
+
+    .add-btn {
+      padding: 11px 18px;
+      background: var(--green);
+      border: none;
+      border-radius: 10px;
+      color: #0d0f0e;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .add-btn:hover { opacity: 0.85; }
+
+    /* ── RIGHT: INFO SIDE ── */
+    .info-side {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel {
+      padding: 22px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel:last-child { border-bottom: none; flex: 1; overflow-y: auto; }
+
+    .panel-title {
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 14px;
+    }
+
+    /* Task list */
+    .task-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .empty-msg {
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 16px 0;
+    }
+
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      /* slide-in animation */
+      animation: fadeSlide 0.25s ease;
+    }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* green left border when this task is active/selected */
+    .task-item.selected { border-color: var(--green); }
+
+    /* faded + strikethrough when done */
+    .task-item.done { opacity: 0.4; }
+    .task-item.done .task-name { text-decoration: line-through; }
+
+    .check-btn {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      transition: background 0.15s, border-color 0.15s;
+      color: #0d0f0e;
+    }
+    .check-btn:hover { border-color: var(--green); }
+    .check-btn.done { background: var(--green); border-color: var(--green); }
+
+    .task-name {
+      flex: 1;
+      font-size: 0.88rem;
+      cursor: pointer; /* click to make it active */
+    }
+
+    .task-pomos {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .del-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 2px 4px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .task-item:hover .del-btn { opacity: 1; }
+
+    /* Weekly chart */
+    .week-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 80px;
+    }
+
+    .bar-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      height: 100%;
+    }
+
+    .bar-count {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--muted);
+      min-height: 12px;
+    }
+
+    .bar-track {
+      flex: 1;
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+    }
+
+    .bar-fill {
+      width: 100%;
+      background: var(--green-dark);
+      border-radius: 5px;
+      height: 0%;
+      transition: height 0.6s ease;
+    }
+
+    .bar-fill.today { background: var(--green); }
+
+    .bar-day {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem;
+      color: var(--muted);
+    }
+    .bar-day.today { color: var(--green); }
+
+    /* Settings */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .setting-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+
+    .setting-box label {
+      display: block;
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 5px;
+    }
+
+    .setting-box input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--green);
+      font-family: 'DM Mono', monospace;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      padding: 12px 32px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-note {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    #active-task-label { color: var(--green); }
+
+    .sound-btn {
+      background: var(--card);
+      border: 1px solid var(--green);
+      border-radius: 8px;
+      padding: 6px 14px;
+      color: var(--green);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .sound-btn:hover { opacity: 0.8; }
+    .sound-btn.off { border-color: var(--border); color: var(--muted); }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* responsive */
+    @media (max-width: 820px) {
+      main { grid-template-columns: 1fr; }
+      .timer-side { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+
+  </style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header>
+  <div class="logo">Focus<em>Flow</em></div>
+  <div class="header-stats">
+    <div class="stat">
+      <div class="stat-num" id="stat-today">0</div>
+      <div class="stat-label">Today</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="stat-week">0</div>
+      <div class="stat-label">This Week</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="stat-streak">0</div>
+      <div class="stat-label">Day Streak 🔥</div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ MAIN ═══ -->
+<main>
+
+  <!-- LEFT: Timer -->
+  <div class="timer-side">
+
+    <!-- Mode tabs -->
+    <div class="mode-tabs">
+      <button class="mode-btn active" id="tab-focus" onclick="switchMode('focus')">Focus</button>
+      <button class="mode-btn" id="tab-short"        onclick="switchMode('short')">Short Break</button>
+      <button class="mode-btn" id="tab-long"         onclick="switchMode('long')">Long Break</button>
+    </div>
+
+    <!-- SVG ring timer -->
+    <div class="timer-circle">
+      <svg viewBox="0 0 260 260">
+        <circle class="ring-bg"       cx="130" cy="130" r="116"/>
+        <circle class="ring-progress" cx="130" cy="130" r="116" id="ring"/>
+      </svg>
+      <div class="timer-text">
+        <div class="timer-time" id="timer-display">25:00</div>
+        <div class="timer-mode-name" id="mode-label">Focus Session</div>
+      </div>
+    </div>
+
+    <!-- Session dots (e.g. 4 rounds) -->
+    <div class="pomo-dots" id="pomo-dots"></div>
+
+    <!-- Play / Reset / Skip -->
+    <div class="controls">
+      <button class="btn-round" onclick="resetTimer()" title="Reset">↺</button>
+      <button class="btn-play"  id="play-btn" onclick="toggleTimer()">▶</button>
+      <button class="btn-round" onclick="skipSession()" title="Skip">⏭</button>
+    </div>
+
+    <!-- Add task -->
+    <div class="task-form">
+      <span class="form-label">What are you working on?</span>
+      <div class="form-row">
+        <input
+          class="task-input"
+          id="task-input"
+          type="text"
+          placeholder="Enter a task..."
+          maxlength="60"
+          onkeydown="if(event.key === 'Enter') addTask()"
+        />
+        <button class="add-btn" onclick="addTask()">Add</button>
+      </div>
+    </div>
+
+  </div><!-- /timer-side -->
+
+  <!-- RIGHT: Info panels -->
+  <div class="info-side">
+
+    <!-- Tasks -->
+    <div class="panel" style="flex:1; overflow-y:auto;">
+      <div class="panel-title">Tasks</div>
+      <div class="task-list" id="task-list">
+        <div class="empty-msg">No tasks yet. Add one above!</div>
+      </div>
+    </div>
+
+    <!-- Weekly chart -->
+    <div class="panel">
+      <div class="panel-title">This Week's Pomodoros</div>
+      <div class="week-chart" id="week-chart"></div>
+    </div>
+
+    <!-- Settings -->
+    <div class="panel">
+      <div class="panel-title">Settings (minutes)</div>
+      <div class="settings-grid">
+        <div class="setting-box">
+          <label for="set-focus">Focus</label>
+          <input id="set-focus" type="number" value="25" min="1" max="90" onchange="applySettings()"/>
+        </div>
+        <div class="setting-box">
+          <label for="set-short">Short Break</label>
+          <input id="set-short" type="number" value="5" min="1" max="30" onchange="applySettings()"/>
+        </div>
+        <div class="setting-box">
+          <label for="set-long">Long Break</label>
+          <input id="set-long" type="number" value="15" min="1" max="60" onchange="applySettings()"/>
+        </div>
+        <div class="setting-box">
+          <label for="set-rounds">Rounds</label>
+          <input id="set-rounds" type="number" value="4" min="2" max="8" onchange="applySettings()"/>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /info-side -->
+
+</main>
+
+<!-- ═══ FOOTER ═══ -->
+<footer>
+  <div class="footer-note">
+    Focusing on: <span id="active-task-label">nothing selected</span>
+  </div>
+  <button class="sound-btn" id="sound-btn" onclick="toggleSound()">🔔 Sound On</button>
+</footer>
+
+<script src="script1.js"></script>
+
+    
+</body>
+</html>
